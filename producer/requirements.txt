@@ -1,0 +1,1 @@
+kafka-python==2.3.0 ; python_version >= "3.13"
