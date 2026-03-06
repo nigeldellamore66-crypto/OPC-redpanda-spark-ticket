@@ -125,7 +125,8 @@ Une courte vidéo explique :
 
 ▶️ Video :
 
-Watch the demo
+[Regarder la démonstration
+](https://youtu.be/YojvKA2PAgw)
 
 ## Technologies utilisées
 
