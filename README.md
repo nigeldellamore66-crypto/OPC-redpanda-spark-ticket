@@ -1,6 +1,6 @@
 # redpanda-ticket
 
-## Overview
+## Aperçu
 
 Ce projet implémente un pipeline de données en streaming permettant de traiter des tickets clients en temps réel.
 
@@ -24,9 +24,10 @@ Le pipeline fonctionne selon les étapes suivantes :
 
 - Un checkpoint Spark permet la reprise automatique en cas d’arrêt.
 
-## Data Pipeline Diagram
+## Diagramme du pipeline de données
 
-### flowchart LR
+```mermaid
+flowchart TD
 
 A[Producer<br>Python] -->|JSON Tickets| B[Kafka / Redpanda<br>Topic: client-tickets]
 
@@ -38,19 +39,24 @@ D --> E[Business Logic<br>Assign Support Team]
 
 E --> F[Write Stream]
 
-F --> G[Parquet Files<br>/data/parquet/client-tickets]
+F --> G[Parquet Files<br>/output/parquet/client-tickets]
 
-C --> H[Checkpoint<br>/data/checkpoints/client-tickets]
-Data Format
+C --> H[Checkpoint<br>/output/checkpoints/client-tickets]
+```
 
 Les tickets envoyés dans Kafka ont le format JSON suivant :
 
 {
   "ticket_id": uuid,
+  
   "client_id": int,
+  
   "created_at": datetime,
+  
   "demande": string,
+  
   "type_demande": string,
+  
   "priorite": string
 }
 
@@ -58,17 +64,18 @@ Les tickets envoyés dans Kafka ont le format JSON suivant :
 
 Le pipeline assigne automatiquement une équipe support en fonction du type de demande :
 
-type_demande	support_team
-incident	    Team A
-facturation  	Team B
-technique   	Team C
-autre       	Team D
+| type_demande | support_team |
+|--------------|--------------|
+| incident     | Team A       |
+| facturation  | Team B       |
+| technique    | Team C       |
+| autre        | Team D       |
 
-## Running the Project
+## Lancement du Project
 
-### 1. Start Infrastructure
+### 1. Démarrage Infrastructure
 
-docker compose up -d
+**docker compose up -d**
 
 Démarre les services :
 
@@ -78,15 +85,25 @@ Démarre les services :
 
 - script Consumer spark
 
-### 2. Check Output Data
+### 2. Vérification Output Data
 
 Les fichiers générés seront disponibles dans :
 
 /output/parquet/client-tickets
 
-## Checkpointing
+### 3. Démarrage du job insight
 
-Spark utilise un checkpoint directory pour :
+**docker compose --profile batch run --rm spark-insight**
+
+Démarre le service spark-insight qui calcul le nombre de tickets par type à partir des fichier parquet générés.
+
+Les aggrégations générés seront disponibles dans :
+
+/output/reports/tickets_by_type
+
+## Points de contrôles Spark
+
+Spark utilise un dossier checkpoint pour :
 
 - stocker les offsets Kafka consommés
 
@@ -96,7 +113,7 @@ Spark utilise un checkpoint directory pour :
 
 /output/checkpoints/client-tickets
 
-## Demonstration Video
+## Video de démonstration
 
 Une courte vidéo explique :
 
@@ -110,7 +127,7 @@ Une courte vidéo explique :
 
 Watch the demo
 
-## Technologies Used
+## Technologies utilisées
 
 - Apache Spark Structured Streaming
 
@@ -124,7 +141,7 @@ Watch the demo
 
 - Mermaid
 
-## Key Concepts Demonstrated
+## Concepts clés démontrés
 
 - Streaming data pipeline
 
