@@ -1,159 +1,116 @@
-# redpanda-ticket
+# Pipeline streaming de tickets clients — Redpanda · Spark · Parquet
 
-## Aperçu
+> Proof of Concept d'un pipeline de données en temps réel :
+> ingestion de tickets clients via Kafka (Redpanda), traitement par
+> Spark Structured Streaming, enrichissement métier et stockage Parquet.
 
-Ce projet implémente un pipeline de données en streaming permettant de traiter des tickets clients en temps réel.
+## Contexte & objectif
 
-Les messages sont envoyés dans Kafka (Redpanda), traités par Apache Spark Structured Streaming, enrichis avec une logique métier (assignation d’une équipe support), puis stockés au format Parquet pour analyse.
+Ce projet démontre comment construire un pipeline streaming simple et
+scalable pour traiter des tickets clients en temps réel.
+Un producteur Python génère des tickets au format JSON, Spark les consomme
+et les enrichit avec une logique d'assignation d'équipe support, puis les
+stocke au format Parquet pour analyse batch.
 
-Ce Proof of Concept démontre comment construire un pipeline temps réel simple et scalable.
+## Stack technique
 
-## Architecture
+`Python` `Apache Spark` `Kafka / Redpanda` `Parquet` `Docker`
 
-Le pipeline fonctionne selon les étapes suivantes :
-
-- Un producteur envoie des tickets clients au format JSON dans un topic Kafka ( Redpanda).
-
-- Spark Structured Streaming consomme les messages.
-
-- Les messages sont parsés selon un schéma défini.
-
-- Une transformation enrichit les tickets avec une équipe support.
-
-- Les données sont écrites au format Parquet.
-
-- Un checkpoint Spark permet la reprise automatique en cas d’arrêt.
-
-## Diagramme du pipeline de données
-
+## Architecture du pipeline
 ```mermaid
 flowchart TD
-
 A[Producer<br>Python] -->|JSON Tickets| B[Kafka / Redpanda<br>Topic: client-tickets]
-
 B --> C[Spark Structured Streaming]
-
 C --> D[Parse JSON<br>Apply Schema]
-
 D --> E[Business Logic<br>Assign Support Team]
-
 E --> F[Write Stream]
-
 F --> G[Parquet Files<br>/output/parquet/client-tickets]
-
 C --> H[Checkpoint<br>/output/checkpoints/client-tickets]
 ```
 
-Les tickets envoyés dans Kafka ont le format JSON suivant :
+## Structure du repo
+```
+├── producer/
+│   ├── ticket-producer.py      # Génération et envoi de tickets vers Kafka
+│   ├── requirements.txt        # Dépendances Python du producteur
+│   └── Dockerfile
+├── consumer/
+│   ├── spark_consumer.py       # Spark Structured Streaming + écriture Parquet
+│   ├── spark_insight.py        # Job batch d'agrégation sur les Parquet
+│   └── Dockerfile
+├── docker-compose.yml
+└── README.md
+```
 
+## Format des tickets
+```json
 {
-  "ticket_id": uuid,
-  
-  "client_id": int,
-  
-  "created_at": datetime,
-  
-  "demande": string,
-  
-  "type_demande": string,
-  
-  "priorite": string
+  "ticket_id": "uuid",
+  "client_id": 42,
+  "created_at": "2024-01-15T10:30:00",
+  "demande": "Mon service ne fonctionne plus",
+  "type_demande": "incident",
+  "priorite": "haute"
 }
+```
 
-## Business Logic
-
-Le pipeline assigne automatiquement une équipe support en fonction du type de demande :
+## Business Logic — Assignation des équipes
 
 | type_demande | support_team |
-|--------------|--------------|
-| incident     | Team A       |
-| facturation  | Team B       |
-| technique    | Team C       |
-| autre        | Team D       |
+|---|---|
+| incident | Team A |
+| facturation | Team B |
+| technique | Team C |
+| autre | Team D |
 
-## Lancement du Project
+## Lancement du projet
 
-### 1. Démarrage Infrastructure
+**1. Démarrer l'infrastructure et le pipeline**
+```bash
+docker compose up -d
+```
 
-**docker compose up -d**
-
-Démarre les services :
-
+Démarre :
 - Kafka / Redpanda
+- Le producteur Python (`ticket-producer.py`)
+- Le consommateur Spark (`spark_consumer.py`)
 
-- script Producer
+Les fichiers Parquet sont générés dans `/output/parquet/client-tickets/`
 
-- script Consumer spark
+**2. Lancer le job d'analyse batch**
+```bash
+docker compose --profile batch run --rm spark-insight
+```
 
-### 2. Vérification Output Data
+Exécute `spark_insight.py` — calcule le nombre de tickets par type
+à partir des fichiers Parquet générés.
 
-Les fichiers générés seront disponibles dans :
+Les agrégations sont disponibles dans `/output/reports/tickets_by_type/`
 
-/output/parquet/client-tickets
+**3. Explorer les données (optionnel)**
 
-### 3. Démarrage du job insight
+Ouvrir `consumer/read_parquet.ipynb` pour inspecter les fichiers
+Parquet produits par le pipeline.
 
-**docker compose --profile batch run --rm spark-insight**
+## Tolérance aux pannes — Checkpoints Spark
 
-Démarre le service spark-insight qui calcul le nombre de tickets par type à partir des fichier parquet générés.
+Spark stocke les offsets Kafka consommés dans
+`/output/checkpoints/client-tickets/`, ce qui garantit :
+- la reprise automatique en cas d'arrêt
+- l'absence de retraitement des données déjà consommées
 
-Les aggrégations générés seront disponibles dans :
+## Démonstration
 
-/output/reports/tickets_by_type
+[Regarder la vidéo de démonstration](https://youtu.be/YojvKA2PAgw)
 
-## Points de contrôles Spark
+La vidéo couvre l'architecture du pipeline, le lancement du projet
+et la vérification des données générées.
 
-Spark utilise un dossier checkpoint pour :
+## Apprentissages clés
 
-- stocker les offsets Kafka consommés
-
-- garantir la tolérance aux pannes
-
-- éviter de retraiter les mêmes données
-
-/output/checkpoints/client-tickets
-
-## Video de démonstration
-
-Une courte vidéo explique :
-
-- l’architecture du pipeline
-
-- comment lancer le projet
-
-- comment vérifier les données générées
-
-▶️ Video :
-
-[Regarder la démonstration
-](https://youtu.be/YojvKA2PAgw)
-
-## Technologies utilisées
-
-- Apache Spark Structured Streaming
-
-- Kafka / Redpanda
-
-- Python
-
-- Parquet
-
-- Docker
-
-- Mermaid
-
-## Concepts clés démontrés
-
-- Streaming data pipeline
-
-- Kafka message ingestion
-
-- Spark Structured Streaming
-
-- JSON schema parsing
-
-- Data enrichment
-
-- Fault tolerance with checkpoints
-
-- Data lake storage using Parquet
+- Construction d'un pipeline streaming bout en bout avec Spark et Kafka
+- Consommation et parsing de messages JSON avec schéma explicite
+- Enrichissement de données en temps réel (business logic)
+- Tolérance aux pannes via checkpoints Spark
+- Stockage en Data Lake avec Parquet
+- Orchestration multi-conteneurs avec Docker Compose
